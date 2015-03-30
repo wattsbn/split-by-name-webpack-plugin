@@ -1,3 +1,6 @@
+var path = require('path');
+var baseDirectory = path.join(__dirname, '..', '..');
+
 var SplitByNamePlugin = module.exports = function (options) {
   this.options = options;
 
@@ -14,9 +17,12 @@ SplitByNamePlugin.prototype.apply = function(compiler) {
   var options = this.options;
 
   function findMatchingBucket(chunk) {
+    if (!chunk || !chunk.userRequest) { return null; }
+    var check = path.relative(baseDirectory, chunk.userRequest);
+
     var match = null;
     options.buckets.some(function (bucket) {
-      if (bucket.regex.test(chunk.rawRequest)) {
+      if (bucket.regex.test(check)) {
         match = bucket;
         return true;
       }
