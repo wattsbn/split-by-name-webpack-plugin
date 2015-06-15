@@ -44,16 +44,6 @@ SplitByNamePlugin.prototype.apply = function(compiler) {
             return extraChunks[bucket.name];
         }
 
-        var called = false;
-        function printFunctions(thing) {
-            if (called) { return; }; called = true;
-            for (key in thing) {
-                //if (typeof thing[key] === 'function') {
-                console.log(key)
-                //}
-            }
-        }
-
         compilation.plugin("optimize-chunks", function(chunks) {
 
             var addChunk = this.addChunk.bind(this);
@@ -74,7 +64,7 @@ SplitByNamePlugin.prototype.apply = function(compiler) {
                         if (!(newChunk = bucketToChunk(bucket))) {
                             newChunk = extraChunks[bucket.name] = addChunk(bucket.name);
                         }
-                        //printFunctions(mod);
+
                         // add the module to the new chunk
                         newChunk.addModule(mod);
                         mod.addChunk(newChunk);
@@ -86,29 +76,32 @@ SplitByNamePlugin.prototype.apply = function(compiler) {
                         .map(bucketToChunk)
                         .filter(Boolean)
                         .concat(chunk)
-                        .forEach(function (chunk, index, allChunks) { // allChunks = [bucket0, bucket1, .. bucketN, orig]
+                        .forEach(function(chunk, index, allChunks) { // allChunks = [bucket0, bucket1, .. bucketN, orig]
                             if (index) { // not the first one, they get the first chunk as a parent
                                 chunk.parents = [allChunks[0]];
                             } else { // the first chunk, it gets the others as 'sub' chunks
                                 chunk.chunks = allChunks.slice(1);
                             }
                             chunk.initial = chunk.entry = !index;
-                            //console.log(chunk.name, chunk.entry, chunk.initial, chunk.modules.length);
-
-                            //if (chunk.name === 'vendor') {
-                            //    chunk.modules.forEach(function(m) {
-                            //        console.log(path.relative(baseDirectory, m.userRequest));
-                            //    })
-                            //
-                            //}
                         });
                 });
         });
-        compilation.plugin('after-optimize-module-ids', function(modules) {
-            modules.forEach(function(mod) {
 
-                //if (mod && mod.id < 20) { console.log(mod.id, mod.debugId, mod.lastId, mod.request); }
-            })
+        compilation.plugin("record-chunks", function(chunks, records) {
+            records.chunks = records.chunks || {};
+            records.chunks.modules = {byIdentifier: {}, byResource: {}};
+            chunks.forEach(function(chunk) {
+                if (!chunk || !chunk.modules) { return; }
+                var resources = [], identifiers = [];
+                chunk.modules.forEach(function(module) {
+                    if (module.resource) {
+                        resources.push(module.resource);
+                    }
+                    identifiers.push(module.id);
+                });
+                records.chunks.modules.byIdentifier[chunk.name] = identifiers;
+                records.chunks.modules.byResource[chunk.name] = resources;
+            });
         });
     });
 };
